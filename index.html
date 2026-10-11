@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex, nofollow">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; connect-src 'self' https://api.apple-cloudkit.com https://*.icloud-content.com; base-uri 'none'; form-action 'none'">
+<title>Espace client — Solavo</title>
+<style>
+  :root {
+    --vert: #3f7f39; --vert-fonce: #21502a; --fond: #f4f5f2; --carte: #ffffff; --texte: #1b1f1a; --discret: #6b7268;
+    --trait: #e3e6e0; --orange: #b85c00; --rouge: #b3261e; --ok-fond: #e5f1e3;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --fond: #121512; --carte: #1c211c; --texte: #eef1ec; --discret: #9aa396; --trait: #2c332b; --ok-fond: #203320;
+            --vert: #74b86a; --orange: #f0a04b; --rouge: #ff8a80; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fond); color: var(--texte);
+         font: 16px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  .bandeau { background: linear-gradient(135deg, #4d8f45, #21502a); color: #fff; padding: 28px 16px 56px; }
+  .bandeau .int, main { max-width: 760px; margin: 0 auto; }
+  .cabinet { font-size: 14px; opacity: .85; letter-spacing: .02em; }
+  h1 { font-size: 26px; margin: 6px 0 2px; line-height: 1.2; }
+  .sous { opacity: .9; }
+  main { padding: 0 16px 40px; margin-top: -36px; }
+  .carte { background: var(--carte); border-radius: 18px; padding: 18px; margin-bottom: 14px;
+           box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 6px 20px rgba(0,0,0,.05); }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--discret); margin: 0 0 10px; }
+  .ligne { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--trait); }
+  .ligne:first-of-type { border-top: 0; padding-top: 2px; }
+  .ligne .g { min-width: 0; }
+  .titre { font-weight: 600; overflow-wrap: anywhere; }
+  .petit { font-size: 13px; color: var(--discret); }
+  .montant { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; text-align: right; }
+  .pastille { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 99px; background: var(--ok-fond); color: var(--vert); }
+  .pastille.retard { background: rgba(179,38,30,.12); color: var(--rouge); }
+  .pastille.attente { background: rgba(184,92,0,.12); color: var(--orange); }
+  button, .bouton { font: inherit; font-size: 14px; font-weight: 600; border: 0; border-radius: 10px; padding: 8px 12px;
+                    background: var(--ok-fond); color: var(--vert); cursor: pointer; white-space: nowrap; }
+  button.principal { background: var(--vert); color: #fff; padding: 12px 18px; width: 100%; font-size: 16px; }
+  .message { white-space: pre-wrap; }
+  .vide { color: var(--discret); font-size: 14px; }
+  .centre { text-align: center; padding: 40px 18px; }
+  input { font: inherit; font-size: 20px; letter-spacing: .2em; text-align: center; width: 100%; padding: 12px;
+          border: 1px solid var(--trait); border-radius: 12px; background: var(--fond); color: var(--texte); margin: 12px 0; }
+  .erreur { color: var(--rouge); font-size: 14px; min-height: 1.4em; }
+  .virement { background: var(--fond); border-radius: 12px; padding: 12px; font-size: 14px; margin-top: 8px; }
+  .virement code { font-size: 14px; overflow-wrap: anywhere; }
+  a { color: var(--vert); }
+  footer { text-align: center; font-size: 12px; color: var(--discret); padding: 8px 16px 32px; }
+  .chargement { width: 28px; height: 28px; border: 3px solid var(--trait); border-top-color: var(--vert); border-radius: 50%;
+                margin: 0 auto 12px; animation: tour 0.9s linear infinite; }
+  @keyframes tour { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="bandeau"><div class="int">
+  <div class="cabinet" id="cabinet">Espace client sécurisé</div>
+  <h1 id="titre">Votre dossier</h1>
+  <div class="sous" id="sous"></div>
+</div></div>
+<main id="contenu">
+  <div class="carte centre"><div class="chargement"></div><div class="vide">Ouverture de votre espace…</div></div>
+</main>
+<footer>Contenu chiffré de bout en bout : il n'est lisible qu'avec votre lien personnel. Ne le transférez pas.<br>Propulsé par Solavo</footer>
+
+<script>
+"use strict";
+/* Réglages du service (communs à tous les cabinets). */
+const CONFIG = {
+  conteneur: "iCloud.fr.gourvest.avocash",
+  environnement: "production",          // « development » pour les versions d'essai (paramètre ?env=development)
+  jeton: "JETON_API_CLOUDKIT"           // jeton d'API web (lecture de la base publique), créé dans la console CloudKit
+};
+
+const $ = (id) => document.getElementById(id);
+const fr = "fr-FR";
+const euros = (n) => new Intl.NumberFormat(fr, { style: "currency", currency: "EUR" }).format(Number(n));
+const jour = (d) => new Date(d).toLocaleDateString(fr, { day: "numeric", month: "long", year: "numeric" });
+const jourHeure = (d) => new Date(d).toLocaleString(fr, { weekday: "long", day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
+const echapper = (t) => String(t ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+function base64url(t) {
+  const b = atob(t.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((t.length + 3) % 4));
+  return Uint8Array.from(b, (c) => c.charCodeAt(0));
+}
+
+function afficherErreur(titre, texte) {
+  $("contenu").innerHTML = `<div class="carte centre"><h2>${echapper(titre)}</h2><div class="vide">${echapper(texte)}</div></div>`;
+}
+
+/* Lien : #identifiant.clé[.c] — la clé ne quitte jamais le navigateur. */
+function lireLien() {
+  const parties = location.hash.replace(/^#/, "").split(".");
+  if (parties.length < 2 || !/^[0-9a-f-]{36}$/.test(parties[0])) return null;
+  return { id: parties[0].toUpperCase(), cle: base64url(parties[1]), code: parties[2] === "c" };
+}
+
+async function telechargerPaquet(id) {
+  const params = new URLSearchParams(location.search);
+  if (params.get("paquet")) {                       // essais en local : paquet servi à côté de la page
+    const r = await fetch(params.get("paquet"), { cache: "no-store" });
+    if (!r.ok) throw new Error("introuvable");
+    return new Uint8Array(await r.arrayBuffer());
+  }
+  const env = params.get("env") === "development" ? "development" : CONFIG.environnement;
+  const url = `https://api.apple-cloudkit.com/database/1/${CONFIG.conteneur}/${env}/public/records/lookup?ckAPIToken=${encodeURIComponent(CONFIG.jeton)}`;
+  const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" },
+                               body: JSON.stringify({ records: [{ recordName: id }], desiredKeys: ["paquet"] }) });
+  if (!r.ok) throw new Error("service");
+  const enr = (await r.json()).records?.[0];
+  if (!enr || enr.serverErrorCode) throw new Error("introuvable");
+  const lien = enr.fields?.paquet?.value?.downloadURL;
+  if (!lien) throw new Error("introuvable");
+  const f = await fetch(lien.replace("${f}", "paquet.bin"));
+  if (!f.ok) throw new Error("service");
+  return new Uint8Array(await f.arrayBuffer());
+}
+
+async function cleDeChiffrement(cle, code) {
+  if (!code) return crypto.subtle.importKey("raw", cle, "AES-GCM", false, ["decrypt"]);
+  const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(code), "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey({ name: "PBKDF2", hash: "SHA-256", salt: cle, iterations: 600000 }, base,
+                                 { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
+}
+
+/* « AVC1 » | nonce 12 | chiffré ‖ étiquette 16 ; clair : JSON puis fichiers, chacun précédé de sa longueur (32 bits). */
+async function dechiffrer(paquet, cle, code) {
+  const magie = new TextDecoder().decode(paquet.slice(0, 4));
+  if (magie !== "AVC1") throw new Error("format");
+  const k = await cleDeChiffrement(cle, code);
+  const clair = new Uint8Array(await crypto.subtle.decrypt({ name: "AES-GCM", iv: paquet.slice(4, 16) }, k, paquet.slice(16)));
+  const vue = new DataView(clair.buffer);
+  const n = vue.getUint32(0);
+  const contenu = JSON.parse(new TextDecoder().decode(clair.slice(4, 4 + n)));
+  const fichiers = [];
+  for (let i = 4 + n; i + 4 <= clair.length;) {
+    const t = vue.getUint32(i);
+    fichiers.push(clair.slice(i + 4, i + 4 + t));
+    i += 4 + t;
+  }
+  return { contenu, fichiers };
+}
+
+const types = { pdf: "application/pdf", jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", heic: "image/heic",
+                doc: "application/msword", docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                xls: "application/vnd.ms-excel", xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                txt: "text/plain", eml: "message/rfc822" };
+
+function ouvrirFichier(octets, nom, type) {
+  const url = URL.createObjectURL(new Blob([octets], { type: types[type] || "application/octet-stream" }));
+  const a = document.createElement("a");
+  a.href = url; a.download = nom; a.rel = "noopener";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+function taille(o) {
+  return o < 1024 * 1024 ? `${Math.max(1, Math.round(o / 1024))} Ko` : `${(o / 1048576).toLocaleString(fr, { maximumFractionDigits: 1 })} Mo`;
+}
+
+function afficher({ contenu: c, fichiers }) {
+  document.title = `Espace client — ${c.cabinet.nom}`;
+  $("cabinet").textContent = c.cabinet.nom + (c.cabinet.barreau ? ` · Barreau de ${c.cabinet.barreau}` : "");
+  $("titre").textContent = c.client || "Votre dossier";
+  $("sous").textContent = (c.adversaire ? `c/ ${c.adversaire}` : c.dossier) + (c.reference ? ` · réf. ${c.reference}` : "");
+  if (c.expireLe && new Date(c.expireLe) < new Date()) {
+    afficherErreur("Espace expiré", "Ce lien n'est plus valable. Contactez le cabinet pour en obtenir un nouveau.");
+    return;
+  }
+  let h = "";
+  if (c.message) h += `<section class="carte"><h2>Message du cabinet</h2><div class="message">${echapper(c.message)}</div></section>`;
+
+  h += `<section class="carte"><h2>Votre dossier</h2>
+    <div class="ligne"><div class="g">État</div><div><span class="pastille ${c.cloture ? "" : "attente"}">${c.cloture ? "Terminé" : "En cours"}</span></div></div>
+    <div class="ligne"><div class="g">Ouvert le</div><div>${jour(c.ouvertLe)}</div></div></section>`;
+
+  h += `<section class="carte"><h2>Prochaines audiences</h2>` + (c.audiences.length ? c.audiences.map((a) =>
+    `<div class="ligne"><div class="g"><div class="titre">${echapper(a.nature)}</div><div class="petit">${echapper(a.lieu)}</div></div>
+     <div class="petit" style="text-align:right">${jourHeure(a.date)}</div></div>`).join("")
+    : `<div class="vide">Aucune audience n'est prévue pour le moment.</div>`) + `</section>`;
+
+  h += `<section class="carte"><h2>Documents</h2>` + (c.documents.length ? c.documents.map((d, i) =>
+    `<div class="ligne"><div class="g"><div class="titre">${echapper(d.nom)}</div><div class="petit">${jour(d.ajouteLe)} · ${taille(d.taille)}</div></div>
+     <button data-doc="${i}">Ouvrir</button></div>`).join("")
+    : `<div class="vide">Aucun document partagé.</div>`) + `</section>`;
+
+  const dus = c.factures.filter((f) => Number(f.resteDu) > 0);
+  h += `<section class="carte"><h2>Factures</h2>` + (c.factures.length ? c.factures.map((f, i) => {
+    const classe = f.statut === "En retard" ? "retard" : Number(f.resteDu) > 0 ? "attente" : "";
+    return `<div class="ligne"><div class="g"><div class="titre">${echapper(f.type)} n° ${echapper(f.numero)}</div>
+      <div class="petit">${jour(f.date)}${Number(f.resteDu) > 0 ? ` · échéance ${jour(f.echeance)}` : ""}</div>
+      <div style="margin-top:4px"><span class="pastille ${classe}">${echapper(f.statut)}</span></div></div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+        <div class="montant">${euros(f.montantTTC)}</div>
+        ${Number(f.resteDu) > 0 && Number(f.resteDu) !== Number(f.montantTTC) ? `<div class="petit">reste ${euros(f.resteDu)}</div>` : ""}
+        ${f.fichier != null ? `<button data-facture="${i}">PDF</button>` : ""}</div></div>`;
+  }).join("") : `<div class="vide">Aucune facture.</div>`);
+  if (dus.length && c.cabinet.iban) {
+    const total = dus.reduce((s, f) => s + Number(f.resteDu), 0);
+    h += `<div class="virement"><strong>Régler par virement : ${euros(total)}</strong><br>
+      Bénéficiaire : ${echapper(c.cabinet.nom)}<br>IBAN : <code>${echapper(c.cabinet.iban)}</code>
+      ${c.cabinet.bic ? `<br>BIC : <code>${echapper(c.cabinet.bic)}</code>` : ""}<br>
+      Référence : <code>${dus.map((f) => echapper(f.numero)).join(", ")}</code></div>`;
+  }
+  h += `</section>`;
+
+  // Coordonnées : tout texte venant du paquet est échappé ; seuls les liens tel/mailto sont construits ici.
+  const coords = [];
+  if (c.cabinet.adresse) coords.push(echapper(c.cabinet.adresse));
+  if (c.cabinet.telephone) coords.push(`Tél. <a href="tel:${echapper(c.cabinet.telephone.replace(/\s/g, ""))}">${echapper(c.cabinet.telephone)}</a>`);
+  if (c.cabinet.email) coords.push(`<a href="mailto:${echapper(c.cabinet.email)}">${echapper(c.cabinet.email)}</a>`);
+  h += `<section class="carte"><h2>Votre avocat</h2><div class="titre">${echapper(c.cabinet.nom)}</div>
+        <div class="petit" style="margin-top:4px;line-height:1.7">${coords.join("<br>")}</div></section>`;
+  h += `<p class="petit" style="text-align:center">Mis à jour le ${jourHeure(c.misAJourLe)}${c.expireLe ? ` · accessible jusqu'au ${jour(c.expireLe)}` : ""}</p>`;
+  $("contenu").innerHTML = h;
+
+  document.querySelectorAll("[data-doc]").forEach((b) => b.addEventListener("click", () => {
+    const d = c.documents[Number(b.dataset.doc)];
+    ouvrirFichier(fichiers[d.fichier], d.nom, d.type);
+  }));
+  document.querySelectorAll("[data-facture]").forEach((b) => b.addEventListener("click", () => {
+    const f = c.factures[Number(b.dataset.facture)];
+    ouvrirFichier(fichiers[f.fichier], `${f.type} ${f.numero}.pdf`, "pdf");
+  }));
+}
+
+function demanderCode(paquet, lien) {
+  $("contenu").innerHTML = `<div class="carte centre"><h2>Code d'accès</h2>
+    <div class="vide">Saisissez le code que le cabinet vous a communiqué.</div>
+    <form id="formulaire"><input id="code" inputmode="numeric" autocomplete="one-time-code" autofocus>
+    <div class="erreur" id="erreur"></div><button class="principal" type="submit">Ouvrir</button></form></div>`;
+  $("formulaire").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    $("erreur").textContent = "Vérification…";
+    try {
+      afficher(await dechiffrer(paquet, lien.cle, $("code").value.trim()));
+    } catch {
+      $("erreur").textContent = "Code incorrect.";
+    }
+  });
+}
+
+(async function demarrer() {
+  if (!window.crypto?.subtle) return afficherErreur("Navigateur non pris en charge", "Ouvrez ce lien dans un navigateur récent (Safari, Chrome, Firefox, Edge).");
+  const lien = lireLien();
+  if (!lien) return afficherErreur("Lien incomplet", "Utilisez le lien complet reçu du cabinet, sans le modifier.");
+  let paquet;
+  try {
+    paquet = await telechargerPaquet(lien.id);
+  } catch (e) {
+    return e.message === "introuvable"
+      ? afficherErreur("Espace indisponible", "Cet espace a été fermé par le cabinet ou n'existe plus.")
+      : afficherErreur("Service momentanément indisponible", "Réessayez dans quelques instants.");
+  }
+  if (lien.code) return demanderCode(paquet, lien);
+  try {
+    afficher(await dechiffrer(paquet, lien.cle, ""));
+  } catch {
+    afficherErreur("Lien invalide", "Ce lien est incomplet ou a été modifié.");
+  }
+})();
+</script>
+</body>
+</html>
