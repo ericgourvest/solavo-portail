@@ -108,7 +108,7 @@ async function telechargerPaquet(id) {
   }
   const env = params.get("env") === "development" ? "development" : CONFIG.environnement;
   const url = `https://api.apple-cloudkit.com/database/1/${CONFIG.conteneur}/${env}/public/records/lookup?ckAPIToken=${encodeURIComponent(CONFIG.jeton)}`;
-  const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" },
+  const r = await fetch(url, { method: "POST", headers: { "Content-Type": "text/plain;charset=UTF-8" },
                                body: JSON.stringify({ records: [{ recordName: id }], desiredKeys: ["paquet"] }) });
   if (!r.ok) throw new Error("service");
   const enr = (await r.json()).records?.[0];
